@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Hello World!</string>
+    <string name="selectActivity">Select Activiry Menu</string>
+    <string name="locationButton">Location</string>
+    <string name="locationSerciveSwitchOn">Location Service On</string>
+    <string name="locationServiceSwitchOff">Location Service Off</string>
+    <string name="notification_title">Notifi from my LocationService</string>
+    <string name="notification_message">Service work in background</string>
+    <string name="ticker_text">what is this?!</string>
+    <string name="channel_name">channel name</string>
+    <string name="channel_description">this is channel for my LocationService notifycation</string>
+</resources>
