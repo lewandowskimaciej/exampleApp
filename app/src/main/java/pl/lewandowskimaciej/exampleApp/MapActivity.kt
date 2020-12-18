@@ -1,13 +1,17 @@
 package pl.lewandowskimaciej.exampleApp
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.location.Location
 import android.location.LocationListener
 import android.os.Bundle
+import android.preference.PreferenceManager
 import android.util.DisplayMetrics
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.preference.PreferenceManager
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -20,7 +24,7 @@ import org.osmdroid.views.overlay.compass.InternalCompassOrientationProvider
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 
-class MapActivity : AppCompatActivity(), LocationListener {
+class MapActivity : AppCompatActivity() {
 
     var TAG : String = "myMapActivity"
 
@@ -31,16 +35,32 @@ class MapActivity : AppCompatActivity(), LocationListener {
     var mScaleBarOverlay : ScaleBarOverlay? = null
     var displayMetrics : DisplayMetrics? = null
     var listGeoPoint : MutableList<GeoPoint>? = null
-    var line : Polyline = Polyline()
+    var geoPoint : GeoPoint = GeoPoint(0.0, 0.0)
 
-    var location : Location? = null
+    var mapBroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val longitude : Double = intent!!.getDoubleExtra("longitude", 0.0)
+            val latitude : Double= intent!!.getDoubleExtra("latitude", 0.0)
+            geoPoint = GeoPoint(latitude, longitude)
+            listGeoPoint?.add(geoPoint)
+
+            mapController!!.animateTo(geoPoint)
+            mapController!!.setZoom(zoomValue)
+
+            Log.e(TAG, "longitude: " + longitude + " latitude: " + latitude)
+        }
+    }
+
     var zoomValue : Double = 17.0
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Configuration.getInstance().load(applicationContext, PreferenceManager.getDefaultSharedPreferences(applicationContext))
+
+        geoPoint = GeoPoint(intent.getDoubleExtra("latitude", 0.0), intent.getDoubleExtra("longitude", 0.0))
         setContentView(R.layout.activity_map)
 
-        Configuration.getInstance().load(applicationContext, PreferenceManager.getDefaultSharedPreferences(applicationContext))
         map = findViewById(R.id.map)
         mapController = map!!.controller as MapController
 
@@ -64,34 +84,15 @@ class MapActivity : AppCompatActivity(), LocationListener {
         this.mLocationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(applicationContext), map)
 
         map!!.overlays.add(this.mLocationOverlay)
-
-    }
-
-    override fun onLocationChanged(location: Location) {
-        this.location = location
-
-        var geoPoint = GeoPoint(location.latitude, location.longitude)
-        listGeoPoint?.add(geoPoint)
-
-        mapController!!.animateTo(geoPoint)
+        mapController!!.setCenter(geoPoint)
         mapController!!.setZoom(zoomValue)
 
-        drawLineBeetweenGeoPoints()
+        var intentFilter = IntentFilter()
+        intentFilter.addAction("MapBrodcastReceiver")
+        registerReceiver(mapBroadcastReceiver, intentFilter)
 
     }
 
-    fun drawLineBeetweenGeoPoints() {
-        line.setPoints(listGeoPoint)
-        line.setOnClickListener { polyline, mapView, eventPos ->
-            Toast.makeText(
-                mapView.context,
-                "polyline with " + polyline.points.size + "pts was tapped",
-                Toast.LENGTH_LONG
-            ).show()
-            false
-        }
-        map!!.overlayManager.add(line)
-    }
 
     override fun onResume() {
         super.onResume()
@@ -107,4 +108,7 @@ class MapActivity : AppCompatActivity(), LocationListener {
         super.onDestroy()
         map?.onDetach()
     }
+
+
 }
+

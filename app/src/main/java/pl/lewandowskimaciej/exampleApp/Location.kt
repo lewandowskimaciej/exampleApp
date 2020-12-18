@@ -37,12 +37,13 @@ class Location : AppCompatActivity() {
         Log.e("switch", condition.toString())
 
         if(condition) startService(Intent(this, LocationService::class.java)) else stopService(Intent(this, LocationService::class.java))
-        //CATION_REQUEST_CODE) startService(Intent(this, LocationService::class.java)) else Toast.makeText(this, "dupa", 22).show()
 
     }
 
     fun locationMapShow(v: View) {
-        var intent : Intent = Intent(this, MapActivity::class.java)
+        var intent = Intent(this, LocationService::class.java)
+        startService(intent)
+        intent = Intent(this, MapActivity::class.java)
         startActivity(intent)
     }
 

@@ -5,6 +5,7 @@ import android.app.*
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.Criteria
 import android.location.LocationListener
@@ -13,8 +14,11 @@ import android.location.LocationProvider
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
+import kotlinx.coroutines.delay
+import org.osmdroid.util.GeoPoint
 
 class LocationService : Service() {
 
@@ -23,9 +27,12 @@ class LocationService : Service() {
     var locationManager : LocationManager? = null
     var locationListener : LocationListener? = null
 
+    var longitude : Double = 0.0
+    var latitude: Double = 0.0
+
 //    @RequiresApi(Build.VERSION_CODES.O)
     override fun onBind(intent: Intent): IBinder? {
-        var iBinder : IBinder? = null
+        val iBinder : IBinder? = null
         return iBinder
     }
 
@@ -37,6 +44,7 @@ class LocationService : Service() {
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         initLocationProvider(locationManager!!)
         Log.e("mylog", "działa")
+
     }
 
     override fun onDestroy() {
@@ -52,7 +60,7 @@ class LocationService : Service() {
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0)
         createNotificationChannel()
-        var notification = Notification.Builder(applicationContext, CHANNEL_ID)
+        val notification = Notification.Builder(applicationContext, CHANNEL_ID)
             .setContentTitle(getText(R.string.notification_title))
             .setContentText(getText(R.string.notification_message))
             .setSmallIcon(R.drawable.ic_launcher_foreground)
@@ -62,7 +70,7 @@ class LocationService : Service() {
         startForeground(1, notification)
     }
 
-    public fun createNotificationChannel() {
+    fun createNotificationChannel() {
 
         // Create the NotificationChannel, but only on API 26+ because
         // the NotificationChannel class is new and not in the support library
@@ -83,10 +91,10 @@ class LocationService : Service() {
 
     fun initLocationProvider(locationManager : LocationManager) {
 
-        var providerString: String? = this.createCoarseCriteria()?.let { locationManager.getBestProvider(it, true) }
+        var providerString: String? = this.createCoarseCriteria().let { locationManager.getBestProvider(it, true) }
         if (providerString == null) {
             Log.e(TAG, "initLocationProvider: no provider create CoarseCriteria")
-            providerString = this.createFineCriteria()?.let { locationManager.getBestProvider(it, true)}
+            providerString = this.createFineCriteria().let { locationManager.getBestProvider(it, true)}
         } else {
             val low: LocationProvider? = locationManager.getProvider(providerString)
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -104,15 +112,25 @@ class LocationService : Service() {
                     Log.e(TAG, "location altitude: " + location.altitude)
                     Log.e(TAG, "location bearing: " + location.bearing)
                     Log.e(TAG, "location speed: " + location.speed)
+                    this.longitude = location.longitude
+                    this.latitude = location.latitude
+                    startMapActivity()
 
                 }
-                locationManager.requestLocationUpdates(low.name, 0, 0f, locationListener!!)
+                locationManager.requestLocationUpdates(low.name, 0, 20f, locationListener!!)
             }
         }
     }
 
+    fun startMapActivity() {
+        val intent = Intent()
+        intent.setAction("MapBrodcastReceiver")
+        intent.putExtra("longitude", longitude)
+        intent.putExtra("latitude", latitude)
+        sendBroadcast(intent)
+    }
 
-    fun createCoarseCriteria(): Criteria? {
+    fun createCoarseCriteria(): Criteria {
         val c = Criteria()
         c.accuracy = Criteria.ACCURACY_COARSE
         c.isAltitudeRequired = false
@@ -124,7 +142,7 @@ class LocationService : Service() {
     }
 
     /** this criteria needs high accuracy, high power, and cost  */
-    fun createFineCriteria(): Criteria? {
+    fun createFineCriteria(): Criteria {
         val c = Criteria()
         c.accuracy = Criteria.ACCURACY_FINE
         c.isAltitudeRequired = false
@@ -135,16 +153,20 @@ class LocationService : Service() {
         return c
     }
 
+//    override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
+//        onTaskRemoved(intent)
+//        Toast.makeText(
+//            applicationContext, "This is a Service running in Background",
+//            Toast.LENGTH_SHORT
+//        ).show()
+//        return START_STICKY
+//    }
+//
+//    override fun onTaskRemoved(rootIntent: Intent) {
+//        val restartServiceIntent = Intent(applicationContext, this.javaClass)
+//        restartServiceIntent.setPackage(packageName)
+//        startService(restartServiceIntent)
+//        super.onTaskRemoved(rootIntent)
+//    }
 
-    class MainBrodcastReceiver : BroadcastReceiver() {
-
-        var TAG = "myLocationServiceBrodcastReceiver"
-
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val extra = intent!!.getStringExtra("LocationServices")
-            Log.d(TAG, "z Broadcast: extra dane z intent: $extra")
-
-        }
-
-    }
 }
